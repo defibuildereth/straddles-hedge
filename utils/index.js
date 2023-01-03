@@ -15,14 +15,14 @@ function utils(web3, bybitSpot, bybitOptions) {
       .slice(-2);
     console.log("get expiry symbol:", lastPrice, premium);
     // Compute strike closest to last price after premium
-    let closest = (Math.floor((lastPrice - premium) / 25) * 25).toString();
+    let closest = ((Math.floor((lastPrice - premium) / 25) * 25) + 25).toString();
     let testString = `ETH-${day}${month.toUpperCase()}${year}-${closest}-P`;
 
     let orderbook = (await bybitOptions.getOrderBook(testString));
     if (orderbook.result.length !== 0) {
       return testString;
     } else {
-      closest = (Math.floor((lastPrice - premium) / 25) * 25) + 25
+      closest = ((Math.floor((lastPrice - premium) / 25) * 25) + 50)
       return `ETH-${day}${month.toUpperCase()}${year}-${closest}-P`;
     }
   };

@@ -1,10 +1,11 @@
 require("dotenv").config();
 
 const { SpotClientV3, USDCOptionClient } = require("bybit-api");
+const { createAlchemyWeb3 } = require("@alch/alchemy-web3");
 
 const fs = require("fs");
 const Web3 = require("web3");
-const web3 = new Web3(process.env.RPC_URL);
+const web3 = createAlchemyWeb3(process.env.RPC_URL);
 
 const ethStraddle = new web3.eth.Contract(
   require("../abi/ETHAtlanticStraddle.json").abi,
@@ -176,7 +177,9 @@ const watchPurchaseEvents = () => {
         cost,
         premiumPerStraddle
       });
-      const amountToHedge = (underlyingPurchased * 2 * poolShare) / 100;
+
+      const amountToHedge = Math.round(((underlyingPurchased * 2 * poolShare) / 100) * 10) / 10;
+      // const amountToHedge = (underlyingPurchased * 2 * poolShare) / 100;
       // Get symbol for Bybit expiry
       const expirySymbol = await getExpirySymbol(
         epochExpiry,
@@ -293,7 +296,8 @@ async function run(isInit) {
 
   for (let strike of Object.keys(hedges)) {
     if (hedges[strike].hedges < hedges[strike].writes) {
-      let toFill = hedges[strike].writes - hedges[strike].hedges;
+      // let toFill = hedges[strike].writes - hedges[strike].hedges;
+      let toFill = Math.round((hedges[strike].writes - hedges[strike].hedges) * 10) / 10;
       let premiumPerStraddle =
         hedges[strike].premiumCollected / hedges[strike].writes;
       console.log(
@@ -313,4 +317,3 @@ async function run(isInit) {
 }
 
 run(true);
-

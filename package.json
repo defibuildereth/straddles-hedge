@@ -8,8 +8,10 @@
     "start": "node ./src/index"
   },
   "dependencies": {
+    "@alch/alchemy-web3": "^1.4.7",
     "bybit-api": "^3.3.3",
     "dotenv": "^16.0.2",
-    "web3": "^1.7.5"
+    "ethers": "^5.7.2",
+    "web3": "^1.8.1"
   }
 }
