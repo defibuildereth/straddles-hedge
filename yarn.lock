@@ -1013,6 +1013,13 @@ depd@2.0.0:
   resolved "https://registry.npmjs.org/depd/-/depd-2.0.0.tgz"
   integrity sha512-g7nH6P6dyDioJogAAGprGpCtVImJhpPk/roCzdb3fIh61/s/nPsfR6onyMwkCAR/OlC3yBC0lESvUoQEAssIrw==
 
+deribit-v2-ws@^1.0.11:
+  version "1.0.11"
+  resolved "https://registry.npmjs.org/deribit-v2-ws/-/deribit-v2-ws-1.0.11.tgz"
+  integrity sha512-xH9zzVUAtaTP0NcutaqpbStFbu1vJOVAp7YAaJ8EzwSh4tGzUCF+uBnqKgR+knaXHe2wwwSSET9mTTaPcySulw==
+  dependencies:
+    ws "^7.4.6"
+
 des.js@^1.0.0:
   version "1.0.1"
   resolved "https://registry.npmjs.org/des.js/-/des.js-1.0.1.tgz"
@@ -2855,6 +2862,11 @@ ws@^3.0.0:
     ultron "~1.1.0"
 
 ws@^7.4.0:
+  version "7.5.9"
+  resolved "https://registry.npmjs.org/ws/-/ws-7.5.9.tgz"
+  integrity sha512-F+P9Jil7UiSKSkppIiD94dN07AwvFixvLIj1Og1Rl9GGMuNipJnV9JzjD6XuqmAeiswGvUmNLjr5cFuXwNS77Q==
+
+ws@^7.4.6:
   version "7.5.9"
   resolved "https://registry.npmjs.org/ws/-/ws-7.5.9.tgz"
   integrity sha512-F+P9Jil7UiSKSkppIiD94dN07AwvFixvLIj1Og1Rl9GGMuNipJnV9JzjD6XuqmAeiswGvUmNLjr5cFuXwNS77Q==

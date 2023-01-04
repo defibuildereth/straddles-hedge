@@ -10,6 +10,7 @@
   "dependencies": {
     "@alch/alchemy-web3": "^1.4.7",
     "bybit-api": "^3.3.3",
+    "deribit-v2-ws": "^1.0.11",
     "dotenv": "^16.0.2",
     "ethers": "^5.7.2",
     "web3": "^1.8.1",
