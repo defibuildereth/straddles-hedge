@@ -1,5 +1,7 @@
 require("dotenv").config();
 
+const fs = require("fs");
+
 const { WebSocket } = require("ws");
 
 let clientId = process.env.DEREBIT_API_KEY;
@@ -21,7 +23,15 @@ let ws = new WebSocket('wss://www.deribit.com/ws/api/v2');
 
 ws.onmessage = function (e) {
     // do something with the response...
-    console.log('received from server : ', e.data);
+    let obj = JSON.parse(e.data)
+    let id = obj.id
+    console.log(id)
+    if (id == 8772) { // getOrderBook
+        let asks = obj.result.asks;
+        console.log('orderbook info: ', asks)
+        saveDerebitOrderbook(asks)
+    }
+    // console.log('received from server : ', e.data);
 };
 
 ws.onopen = async function () {
@@ -31,7 +41,7 @@ ws.onopen = async function () {
     // do stuff here
     let symbol = await getDerebitExpirySymbol(1672905600, 1200.0, 10.0)
     console.log(symbol)
-    getContractInfo(symbol)
+    getOrderBook(symbol)
 };
 
 ws.onclose = function () {
@@ -42,6 +52,20 @@ ws.onclose = function () {
         ws.on('open', onWsOpen);
         ws.on('error', onWsClose);
     }, 5000);
+}
+
+function getOrderBook(symbol) {
+    let msg =
+    {
+        "jsonrpc": "2.0",
+        "id": 8772,
+        "method": "public/get_order_book",
+        "params": {
+            "instrument_name": symbol,
+            "depth": 5
+        }
+    };
+    ws.send(JSON.stringify(msg));
 }
 
 function getContractInfo(symbol) {
@@ -78,3 +102,10 @@ const getDerebitExpirySymbol = async (expiry, lastPrice, premium) => {
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+const saveDerebitOrderbook = orderbook =>
+    fs.writeFile("./DerebitOrderbook.json", JSON.stringify(orderbook), err => {
+        console.log(
+            err ? "Error writing orderbook" : "Successfully saved orderbook"
+        );
+    });
