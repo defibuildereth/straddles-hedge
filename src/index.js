@@ -394,7 +394,6 @@ async function run(isInit) {
 
   for (let strike of Object.keys(hedges)) {
     if (hedges[strike].hedges < hedges[strike].writes) {
-      // let toFill = hedges[strike].writes - hedges[strike].hedges;
       let toFill = Math.round((hedges[strike].writes - hedges[strike].hedges) * 10) / 10; // stops script breaking when order sizes don't match
       let premiumPerStraddle =
         hedges[strike].premiumCollected / hedges[strike].writes;
@@ -421,3 +420,4 @@ async function run(isInit) {
 }
 
 run(true);
+
