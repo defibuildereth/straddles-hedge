@@ -3,6 +3,12 @@ require("dotenv").config();
 const { SpotClientV3, USDCOptionClient } = require("bybit-api");
 const { createAlchemyWeb3 } = require("@alch/alchemy-web3");
 
+const Deribit = require('deribit-v2-ws');
+const key = process.env.DERIBIT_API_KEY;
+const secret = process.env.DERIBIT_API_SECRET;
+
+const db = new Deribit({ key, secret })
+
 const fs = require("fs");
 const Web3 = require("web3");
 const web3 = createAlchemyWeb3(process.env.RPC_URL);
@@ -78,45 +84,70 @@ const fillPuts = async (symbol, toFill, premiumPerStraddle) => {
 
   if (orderbook.length > 0) {
     let i = 0;
-    let priceTooHigh = false;
-    while (toFill > 0 && i <= orderbook.length && !priceTooHigh) {
+    // let priceTooHigh = false;
+    while (toFill > 0 && i <= orderbook.length) { // removed: && priceTooHigh == false
       // Hedge only if price is lesser than premium collected
-      if (orderbook[i].price <= premiumPerStraddle) {
-        console.log(`Puts available @ ${orderbook[i].price}`);
-        let size = parseFloat(orderbook[i].size);
-        let filled = 0;
-        if (toFill >= size) {
-          await marketBuyPuts(symbol, size);
-          toFill -= size;
-          filled += size;
-        } else {
-          await marketBuyPuts(symbol, toFill);
-          filled += toFill;
-          toFill = 0;
-        }
-        console.log(
-          `Filled ${filled} @ ${orderbook[i++].price}. Remaining to fill: ${toFill}`
-        );
+      // if (orderbook[i].price <= premiumPerStraddle) {
+      console.log(`Puts available @ ${orderbook[i].price}`);
+      let size = parseFloat(orderbook[i].size);
+      let filled = 0;
+      if (toFill >= size) {
+        await marketBuyPuts(symbol, size);
+        toFill -= size;
+        filled += size;
       } else {
-        console.error(
-          `Cannot hedge. Price of puts (${orderbook[i].price}) is greater than premium per straddle (${premiumPerStraddle})`
-        );
-        priceTooHigh = true;
+        await marketBuyPuts(symbol, toFill);
+        filled += toFill;
+        toFill = 0;
       }
+      console.log(
+        `Filled ${filled} @ ${orderbook[i++].price}. Remaining to fill: ${toFill}`
+      );
+      // } else {
+      //   console.error(
+      //     `Cannot hedge. Price of puts (${orderbook[i].price}) is greater than premium per straddle (${premiumPerStraddle})`
+      //   );
+      //   priceTooHigh = true;
+      // }
     }
   }
 };
 
-// Retrieve bybit portfolio positions
+// Retrieve bybit (+ deribit) portfolio positions
 const getPositions = async expirySymbol => {
-  let positions = await bybitOptions.getPositions({
+  let positions = [];
+  let bybitPositions = await bybitOptions.getPositions({
     category: "OPTION",
     baseCoin: "ETH"
   });
-  return positions.result.dataList.filter(
+  let filteredByExpiry = (bybitPositions.result.dataList.filter(
     position => position.symbol === expirySymbol
-  );
+  ));
+  // console.log('filteredByExpiry', filteredByExpiry);
+  for (let position of filteredByExpiry) {
+    positions.push(position)
+  }
+  let deribitPositions = await getDeribitPositions(expirySymbol)
+  // console.log('deribitPositions', deribitPositions)
+  for (let position of deribitPositions) {
+    positions.push(position)
+  }
+  console.log('positions: ', positions)
 };
+
+let getDeribitPositions = async function (expirySymbol) {
+  await db.connect();
+  const deribitPositions = await db.request(
+      'private/get_positions',
+      {
+          'currency': 'ETH',
+          "kind": 'option'
+      }
+  );
+  return deribitPositions.result.filter(
+    position => position.instrument_name === expirySymbol
+  )
+}
 
 // Get previous straddle purchase events for epoch
 const getPreviousPurchases = async currentEpoch =>
@@ -297,7 +328,7 @@ async function run(isInit) {
   for (let strike of Object.keys(hedges)) {
     if (hedges[strike].hedges < hedges[strike].writes) {
       // let toFill = hedges[strike].writes - hedges[strike].hedges;
-      let toFill = Math.round((hedges[strike].writes - hedges[strike].hedges) * 10) / 10;
+      let toFill = Math.round((hedges[strike].writes - hedges[strike].hedges) * 10) / 10; // stops script breaking when order sizes don't match
       let premiumPerStraddle =
         hedges[strike].premiumCollected / hedges[strike].writes;
       console.log(
@@ -305,7 +336,7 @@ async function run(isInit) {
           1
         )})`
       );
-      await fillPuts(strike, toFill, premiumPerStraddle);
+      await fillPuts(strike, toFill, premiumPerStraddle); // I think some users would prefer to hedge regardless of whether doing so locks in a profit..
     }
   }
 
@@ -316,4 +347,10 @@ async function run(isInit) {
   }
 }
 
-run(true);
+// run(true);
+let thisFunction = async function () {
+  let hedgePositions = await getPositions('ETH-7JAN23-1250-P')
+  // console.log(hedgePositions)
+}
+
+thisFunction()
