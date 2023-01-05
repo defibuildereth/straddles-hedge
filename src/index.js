@@ -32,7 +32,7 @@ const bybitOptions = new USDCOptionClient({
 });
 
 const { toBN, getExpirySymbol, splitNumber } = require("../utils")(web3, bybitSpot, bybitOptions);
-const { getDeribitOrderBook, getDeribitPositions } = require("../utils/deribit")(db);
+const { getDeribitOrderBook, getDeribitPositions, submitDeribitOrder } = require("../utils/deribit")(db);
 
 // Map closest strikes to positions
 let hedges = {};
@@ -68,10 +68,81 @@ const saveOrderbook = orderbook =>
 
 // Fill puts to hedge new purchases
 const fillPuts = async (symbol, toFill, premiumPerStraddle) => {
-  if (Number.isInteger(toFill)) {
-    //compare deribit and bybit
-    
-  } else { //just use bybit
+  if (Number.isInteger(toFill)) { // deribit minimum order size = 1, making 2 calls to this function
+    // compare deribit and bybit, take whatever's best
+    let markets = (await bybitOptions.getContractInfo({
+      baseCoin: "ETH",
+      limit: 1000
+    })).result.dataList;
+    markets = markets.filter(market => market.symbol === symbol);
+
+    // Get orderbooks
+    let bybitOrderbook = (await bybitOptions.getOrderBook(symbol)).result;
+    bybitOrderbook = bybitOrderbook.filter(order => order.side === "Sell");
+    let deribitOrderBook = await getDeribitOrderBook(symbol);
+    let combinedOrderbook = [];
+    for (let item of deribitOrderBook) {
+      combinedOrderbook.push(item)
+    }
+    for (let item of bybitOrderbook) {
+      combinedOrderbook.push(item)
+    }
+    combinedOrderbook.sort((a, b) => {
+      return Number(a.price) - Number(b.price);
+    });
+    saveOrderbook(combinedOrderbook);
+
+    // same logic as before, added conditional around buy instruction to route correctly
+    if (combinedOrderbook.length > 0) {
+      let i = 0;
+      // let priceTooHigh = false;
+      while (toFill > 0 && i < combinedOrderbook.length) { // removed: && priceTooHigh == false
+        // Hedge only if price is lesser than premium collected
+        // if (orderbook[i].price <= premiumPerStraddle) {
+        console.log(`${combinedOrderbook[i].size} puts available @ ${combinedOrderbook[i].price}`);
+        let size = parseFloat(combinedOrderbook[i].size);
+        let filled = 0;
+        if (toFill >= size) {
+          if (combinedOrderbook[i].exchange) {
+            let ethPrice = combinedOrderbook[i].ethPrice
+            console.log('buying from deribit', size, symbol, ethPrice)
+            // await submitDeribitOrder(size, symbol, ethPrice)
+            toFill -= size;
+            filled += size;
+          } 
+          else {
+          // await marketBuyPuts(symbol, size);
+          toFill -= size;
+          filled += size;
+          }
+        } else {
+          if (combinedOrderbook[i].exchange) {
+            let ethPrice = combinedOrderbook[i].ethPrice
+            console.log('buying from deribit', size, symbol, ethPrice)
+            // await submitDeribitOrder(size, symbol, ethPrice)
+            toFill -= size;
+            filled += size;
+          } 
+          else {
+          // await marketBuyPuts(symbol, toFill);
+          filled += toFill;
+          toFill = 0;
+          }
+
+        }
+        console.log(
+          `Filled ${filled} @ ${combinedOrderbook[i++].price}. Remaining to fill: ${toFill}`
+        );
+        // } else {
+        //   console.error(
+        //     `Cannot hedge. Price of puts (${orderbook[i].price}) is greater than premium per straddle (${premiumPerStraddle})`
+        //   );
+        //   priceTooHigh = true;
+        // }
+      }
+    }
+  }
+  else { //just use bybit (unchanged logic)
     let markets = (await bybitOptions.getContractInfo({
       baseCoin: "ETH",
       limit: 1000
@@ -85,15 +156,15 @@ const fillPuts = async (symbol, toFill, premiumPerStraddle) => {
     orderbook = orderbook.filter(order => order.side === "Sell");
 
     // Save orderbook for reference
-    saveOrderbook(orderbook); getDeribitPositions
+    saveOrderbook(orderbook);
 
     if (orderbook.length > 0) {
       let i = 0;
       // let priceTooHigh = false;
-      while (toFill > 0 && i <= orderbook.length) { // removed: && priceTooHigh == false
+      while (toFill > 0 && i < orderbook.length) { // removed: && priceTooHigh == false
         // Hedge only if price is lesser than premium collected
         // if (orderbook[i].price <= premiumPerStraddle) {
-        console.log(`Puts available @ ${orderbook[i].price}`);
+        console.log(`${orderbook[i].size} puts available @ ${orderbook[i].price}`);
         let size = parseFloat(orderbook[i].size);
         let filled = 0;
         if (toFill >= size) {
@@ -354,8 +425,8 @@ async function run(isInit) {
 
 // run(true);
 let thisFunction = async function () {
-  let hedgePositions = await getDeribitOrderBook('ETH-7JAN23-1250-P')
-  console.log(hedgePositions)
+  let hedgePositions = await fillPuts('ETH-7JAN23-1250-P', 1, 10)
+  // console.log(hedgePositions)
 }
 
 thisFunction()

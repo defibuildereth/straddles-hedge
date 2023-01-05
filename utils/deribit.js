@@ -15,15 +15,16 @@ function deribit(websocket) {
         let inUsd = [];
         let ethPrice = orderbook.result.underlying_price;
         for (let i = 0; i < asks.length; i++) {
-            let thisAsk = asks[i][0] * ethPrice;
-            inUsd.push([thisAsk, asks[i][1]])
+            let thisAsk$ = asks[i][0] * ethPrice;
+            inUsd.push([thisAsk$, asks[i][1], asks[i][0]])
         }
         // convert to bybit format
         let bybitFormat = [];
         for (const element of inUsd) {
             const price = element[0];
             const size = element[1];
-            bybitFormat.push({ price: price.toString(), size: size.toString(), side: "Sell" });
+            const ethPrice = element[2];
+            bybitFormat.push({ price: price.toString(), size: size.toString(), side: "Sell", exchange: "Deribit", ethPrice: ethPrice });
         }
         // console.log(bybitFormat)
         return bybitFormat
@@ -43,9 +44,26 @@ function deribit(websocket) {
         )
     }
 
+    let submitDeribitOrder = async function (size, symbol, price) {
+        await db.connect();
+        const order = await db.request(
+            '/private/buy',
+            {
+                "instrument_name": symbol,
+                "amount": size,
+                "type": "limit",
+                "price": price,
+                "time_in_force": "fill_or_kill",
+            }
+        );
+        console.log(order)
+        return order // check this
+    }
+
     return {
         getDeribitOrderBook,
-        getDeribitPositions
+        getDeribitPositions,
+        submitDeribitOrder
     }
 }
 
