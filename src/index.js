@@ -65,52 +65,64 @@ const saveOrderbook = orderbook =>
     );
   });
 
+function splitNumber(num) {
+  const integer = Math.floor(num);
+  const remainder = num - integer;
+  return { integer, remainder };
+}
+
 // Fill puts to hedge new purchases
 const fillPuts = async (symbol, toFill, premiumPerStraddle) => {
-  let markets = (await bybitOptions.getContractInfo({
-    baseCoin: "ETH",
-    limit: 1000
-  })).result.dataList;
-  markets = markets.filter(market => market.symbol === symbol);
+  if (Number.isInteger(toFill)) {
+    //compare deribit and bybit
+    
+  } else { //just use bybit
+    let markets = (await bybitOptions.getContractInfo({
+      baseCoin: "ETH",
+      limit: 1000
+    })).result.dataList;
+    markets = markets.filter(market => market.symbol === symbol);
 
-  // Get orderbooks
-  let orderbook = (await bybitOptions.getOrderBook(symbol)).result;
+    // Get orderbooks
+    let orderbook = (await bybitOptions.getOrderBook(symbol)).result;
 
-  // Get best ask
-  orderbook = orderbook.filter(order => order.side === "Sell");
+    // Get best ask
+    orderbook = orderbook.filter(order => order.side === "Sell");
 
-  // Save orderbook for reference
-  saveOrderbook(orderbook);
+    // Save orderbook for reference
+    saveOrderbook(orderbook);
 
-  if (orderbook.length > 0) {
-    let i = 0;
-    // let priceTooHigh = false;
-    while (toFill > 0 && i <= orderbook.length) { // removed: && priceTooHigh == false
-      // Hedge only if price is lesser than premium collected
-      // if (orderbook[i].price <= premiumPerStraddle) {
-      console.log(`Puts available @ ${orderbook[i].price}`);
-      let size = parseFloat(orderbook[i].size);
-      let filled = 0;
-      if (toFill >= size) {
-        await marketBuyPuts(symbol, size);
-        toFill -= size;
-        filled += size;
-      } else {
-        await marketBuyPuts(symbol, toFill);
-        filled += toFill;
-        toFill = 0;
+    if (orderbook.length > 0) {
+      let i = 0;
+      // let priceTooHigh = false;
+      while (toFill > 0 && i <= orderbook.length) { // removed: && priceTooHigh == false
+        // Hedge only if price is lesser than premium collected
+        // if (orderbook[i].price <= premiumPerStraddle) {
+        console.log(`Puts available @ ${orderbook[i].price}`);
+        let size = parseFloat(orderbook[i].size);
+        let filled = 0;
+        if (toFill >= size) {
+          await marketBuyPuts(symbol, size);
+          toFill -= size;
+          filled += size;
+        } else {
+          await marketBuyPuts(symbol, toFill);
+          filled += toFill;
+          toFill = 0;
+        }
+        console.log(
+          `Filled ${filled} @ ${orderbook[i++].price}. Remaining to fill: ${toFill}`
+        );
+        // } else {
+        //   console.error(
+        //     `Cannot hedge. Price of puts (${orderbook[i].price}) is greater than premium per straddle (${premiumPerStraddle})`
+        //   );
+        //   priceTooHigh = true;
+        // }
       }
-      console.log(
-        `Filled ${filled} @ ${orderbook[i++].price}. Remaining to fill: ${toFill}`
-      );
-      // } else {
-      //   console.error(
-      //     `Cannot hedge. Price of puts (${orderbook[i].price}) is greater than premium per straddle (${premiumPerStraddle})`
-      //   );
-      //   priceTooHigh = true;
-      // }
     }
   }
+
 };
 
 // Retrieve bybit (+ deribit) portfolio positions
@@ -133,19 +145,20 @@ const getPositions = async expirySymbol => {
     positions.push(position)
   }
   console.log('positions: ', positions)
+  return positions
 };
 
 let getDeribitPositions = async function (expirySymbol) {
   await db.connect();
   const deribitPositions = await db.request(
-      'private/get_positions',
-      {
-          'currency': 'ETH',
-          "kind": 'option'
-      }
+    'private/get_positions',
+    {
+      'currency': 'ETH',
+      "kind": 'option'
+    }
   );
   return deribitPositions.result.filter(
-    position => position.instrument_name === expirySymbol
+    position => position.instrument_name === expirySymbol //check this
   )
 }
 
@@ -220,7 +233,13 @@ const watchPurchaseEvents = () => {
       console.log(
         `To hedge: ${amountToHedge} puts sold @ $${apStrike} w/ ${expirySymbol}`
       );
-      await fillPuts(expirySymbol, amountToHedge, premiumPerStraddle);
+      let components = splitNumber(amountToHedge)
+      if (components.integer) {
+        await fillPuts(expirySymbol, components.integer, premiumPerStraddle);
+      }
+      if (components.remainder) {
+        await fillPuts(expirySymbol, components.remainder, premiumPerStraddle);
+      }
     })
     .on("error", (err, receipt) => {
       console.error("Error on Purchase event:", err, receipt);
@@ -316,7 +335,7 @@ async function run(isInit) {
       };
       let hedgePositions = await getPositions(expirySymbol);
       for (let position of hedgePositions) {
-        hedges[expirySymbol].hedges += parseFloat(position.size);
+        hedges[expirySymbol].hedges += parseFloat(position.size); // check this
       }
     }
     hedges[expirySymbol].premiumCollected += (cost * poolShare) / 1e28;
@@ -332,11 +351,17 @@ async function run(isInit) {
       let premiumPerStraddle =
         hedges[strike].premiumCollected / hedges[strike].writes;
       console.log(
-        `Need to hedge an additional ${toFill} puts @ ${strike} (Must cost below $${premiumPerStraddle.toFixed(
+        `Need to hedge an additional ${toFill} puts @ ${strike} (Must cost below $${premiumPerStraddle.toFixed( // I think some users would prefer to hedge regardless of whether doing so locks in a profit..
           1
         )})`
       );
-      await fillPuts(strike, toFill, premiumPerStraddle); // I think some users would prefer to hedge regardless of whether doing so locks in a profit..
+      let components = splitNumber(toFill)
+      if (components.integer) {
+        await fillPuts(strike, components.integer, premiumPerStraddle);
+      }
+      if (components.remainder) {
+        await fillPuts(strike, components.remainder, premiumPerStraddle);
+      }
     }
   }
 
