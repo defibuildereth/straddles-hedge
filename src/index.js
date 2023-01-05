@@ -31,7 +31,8 @@ const bybitOptions = new USDCOptionClient({
   testnet: false
 });
 
-const { toBN, getExpirySymbol } = require("../utils")(web3, bybitSpot, bybitOptions);
+const { toBN, getExpirySymbol, splitNumber } = require("../utils")(web3, bybitSpot, bybitOptions);
+const { getDeribitOrderBook, getDeribitPositions } = require("../utils/deribit")(db);
 
 // Map closest strikes to positions
 let hedges = {};
@@ -65,12 +66,6 @@ const saveOrderbook = orderbook =>
     );
   });
 
-function splitNumber(num) {
-  const integer = Math.floor(num);
-  const remainder = num - integer;
-  return { integer, remainder };
-}
-
 // Fill puts to hedge new purchases
 const fillPuts = async (symbol, toFill, premiumPerStraddle) => {
   if (Number.isInteger(toFill)) {
@@ -90,7 +85,7 @@ const fillPuts = async (symbol, toFill, premiumPerStraddle) => {
     orderbook = orderbook.filter(order => order.side === "Sell");
 
     // Save orderbook for reference
-    saveOrderbook(orderbook);
+    saveOrderbook(orderbook); getDeribitPositions
 
     if (orderbook.length > 0) {
       let i = 0;
@@ -122,7 +117,6 @@ const fillPuts = async (symbol, toFill, premiumPerStraddle) => {
       }
     }
   }
-
 };
 
 // Retrieve bybit (+ deribit) portfolio positions
@@ -147,20 +141,6 @@ const getPositions = async expirySymbol => {
   console.log('positions: ', positions)
   return positions
 };
-
-let getDeribitPositions = async function (expirySymbol) {
-  await db.connect();
-  const deribitPositions = await db.request(
-    'private/get_positions',
-    {
-      'currency': 'ETH',
-      "kind": 'option'
-    }
-  );
-  return deribitPositions.result.filter(
-    position => position.instrument_name === expirySymbol //check this
-  )
-}
 
 // Get previous straddle purchase events for epoch
 const getPreviousPurchases = async currentEpoch =>
@@ -374,8 +354,8 @@ async function run(isInit) {
 
 // run(true);
 let thisFunction = async function () {
-  let hedgePositions = await getPositions('ETH-7JAN23-1250-P')
-  // console.log(hedgePositions)
+  let hedgePositions = await getDeribitOrderBook('ETH-7JAN23-1250-P')
+  console.log(hedgePositions)
 }
 
 thisFunction()

@@ -1,5 +1,11 @@
 function utils(web3, bybitSpot, bybitOptions) {
 
+  function splitNumber(num) {
+    const integer = Math.floor(num);
+    const remainder = num - integer;
+    return { integer, remainder };
+  }
+
   const toBN = n => web3.utils.toBN(n);
 
   const getLastPrice = async () =>
@@ -28,6 +34,7 @@ function utils(web3, bybitSpot, bybitOptions) {
   };
 
   return {
+    splitNumber,
     toBN,
     getLastPrice,
     getExpirySymbol
