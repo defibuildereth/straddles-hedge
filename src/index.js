@@ -131,7 +131,7 @@ const fillPuts = async (symbol, toFill, premiumPerStraddle) => {
 
           }
           console.log(
-            `Filled ${filled} @ ${combinedOrderbook[i++].price}. Remaining to fill: ${toFill}`
+            `Filled ${filled} @ ${combinedOrderbook[i].price}. Remaining to fill: ${toFill}`
           );
         } else {
           console.error(
@@ -177,7 +177,7 @@ const fillPuts = async (symbol, toFill, premiumPerStraddle) => {
             toFill = 0;
           }
           console.log(
-            `Filled ${filled} @ ${orderbook[i++].price}. Remaining to fill: ${toFill}`
+            `Filled ${filled} @ ${orderbook[i].price}. Remaining to fill: ${toFill}`
           );
         } else {
           console.error(
