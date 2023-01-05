@@ -96,7 +96,7 @@ const fillPuts = async (symbol, toFill, premiumPerStraddle) => {
     if (combinedOrderbook.length > 0) {
       let i = 0;
       let priceTooHigh = false;
-      while (toFill > 0 && i < combinedOrderbook.length && priceTooHigh == false) {
+      while (toFill > 0 && i < combinedOrderbook.length && !priceTooHigh) {
         // Hedge only if price is lesser than premium collected
         if (orderbook[i].price <= premiumPerStraddle) {
           console.log(`${combinedOrderbook[i].size} puts available @ ${combinedOrderbook[i].price}`);
@@ -161,7 +161,7 @@ const fillPuts = async (symbol, toFill, premiumPerStraddle) => {
     if (orderbook.length > 0) {
       let i = 0;
       let priceTooHigh = false;
-      while (toFill > 0 && i < orderbook.length && priceTooHigh == false) {
+      while (toFill > 0 && i < orderbook.length && !priceTooHigh) {
         // Hedge only if price is lesser than premium collected
         if (orderbook[i].price <= premiumPerStraddle) {
           console.log(`${orderbook[i].size} puts available @ ${orderbook[i].price}`);
